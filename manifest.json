@@ -1,0 +1,10 @@
+{
+	"id": "plugin-update-button",
+	"name": "Plugin Update Button",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "",
+	"author": "lukedsmalley",
+	"authorUrl": "https://github.com/lukedsmalley",
+	"isDesktopOnly": true
+}

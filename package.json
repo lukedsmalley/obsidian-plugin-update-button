@@ -1,0 +1,26 @@
+{
+  "name": "obsidian-plugin-update-button",
+  "version": "1.0.0",
+  "description": "Plugin update button for Obsidian",
+  "main": "main.js",
+  "scripts": {
+    "prepare": "husky install",
+    "build": "npx tsc && npx rollup -c rollup.config.mjs"
+  },
+  "keywords": [],
+  "author": "lukedsmalley",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@types/fs-extra": "^11.0.3",
+    "@types/node": "^20.8.7",
+    "husky": "^8.0.3",
+    "obsidian": "^1.4.11",
+    "rollup": "^4.1.4",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "fs-extra": "^11.1.1"
+  }
+}
