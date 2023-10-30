@@ -1,5 +1,4 @@
 import { copy } from 'fs-extra'
-import { mkdir } from 'node:fs/promises'
 import { join, parse } from 'node:path'
 import { App, FileSystemAdapter, Plugin } from 'obsidian'
 
@@ -34,18 +33,24 @@ interface Config {
   plugins: PluginConfig[] | null | undefined
 }
 
+function log(message: string) {
+  console.log(`[Plugin Update Button] ${message}`)
+}
+
 const SOURCE_MAP_PROPERTY_NAME = 'debug-plugin'
 
 export default class PluginUpdateButton extends Plugin {
   async onload() {
+    const adapter = this.app.vault.adapter
+    if (!(adapter instanceof FileSystemAdapter)) {
+      throw new Error('Unsupported vault storage adapter')
+    }
     const config: Config = await this.loadData()
     this.app.workspace.onLayoutReady(() => {
-      const adapter = this.app.vault.adapter
-      if (adapter instanceof FileSystemAdapter) {
-        this.addRibbonIcon(config.reloadButtonIcon || 'refresh-ccw', 'Update Workspace Plugins', () => {
-          this.updatePlugins(this.app as GlobalApp, adapter.getBasePath(), this.app.vault.configDir).catch(console.error)
-        })
-      }
+      this.addRibbonIcon(config.reloadButtonIcon || 'refresh-ccw', 'Update Workspace Plugins', () => {
+        this.updatePlugins(this.app as GlobalApp, adapter.getBasePath(), this.app.vault.configDir).catch(console.error)
+      })
+      log('Loaded')
     })
   }
 
@@ -55,22 +60,26 @@ export default class PluginUpdateButton extends Plugin {
       const pluginConfig = (pluginConfigs || []).find(({ id }) => id === manifest.id)
       if (pluginConfig) {
         const pluginPath = join(vaultPath, configDir, parse(manifest.dir).base)
-        console.log(`Updating files for ${manifest.id}`)
         try {
-          for (const file of pluginConfig.files || []) {
-            const sourcePath = typeof file === 'string' ? file : file.source
-            const destinationPath = typeof file === 'string'
-              ? join(pluginPath, parse(file).base)
-              : file.destination
-            console.log(`Copying ${sourcePath} to ${destinationPath}`)
-            await copy(sourcePath, destinationPath)
+          if (pluginConfig.files && pluginConfig.files.length > 0) {
+            log(`Updating files for ${manifest.id}`)
+            for (const file of pluginConfig.files) {
+              const sourcePath = typeof file === 'string' ? file : file.source
+              const destinationPath = typeof file === 'string'
+                ? join(pluginPath, parse(file).base)
+                : file.destination
+              log(`Copying ${sourcePath} to ${destinationPath}`)
+              await copy(sourcePath, destinationPath)
+            }
           }
+          log(`Reloading ${manifest.id}`)
           await this.reloadPlugin(app.plugins, manifest.id)
         } catch (error) {
           console.error(error)
         }
       }
     }
+    log('Plugins reloaded')
   }
 
   /**
@@ -83,7 +92,6 @@ export default class PluginUpdateButton extends Plugin {
       return
     }
     await plugins.disablePlugin(pluginName)
-    console.log(`Disabled ${pluginName}`)
     /* Load sourcemaps in Obsidian 14+ */
     const oldDebug = localStorage.getItem(SOURCE_MAP_PROPERTY_NAME)
     localStorage.setItem(SOURCE_MAP_PROPERTY_NAME, '1')
@@ -97,6 +105,5 @@ export default class PluginUpdateButton extends Plugin {
         localStorage.setItem(SOURCE_MAP_PROPERTY_NAME, oldDebug)
       }
     }
-    console.log(`Enabled ${pluginName}`)
   }
 }

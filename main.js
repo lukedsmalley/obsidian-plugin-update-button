@@ -2542,17 +2542,22 @@ Object.defineProperty(main, "__esModule", { value: true });
 const fs_extra_1 = lib;
 const node_path_1 = require$$1$1;
 const obsidian_1 = require$$2;
+function log(message) {
+    console.log(`[Plugin Update Button] ${message}`);
+}
 const SOURCE_MAP_PROPERTY_NAME = 'debug-plugin';
 class PluginUpdateButton extends obsidian_1.Plugin {
     async onload() {
+        const adapter = this.app.vault.adapter;
+        if (!(adapter instanceof obsidian_1.FileSystemAdapter)) {
+            throw new Error('Unsupported vault storage adapter');
+        }
         const config = await this.loadData();
         this.app.workspace.onLayoutReady(() => {
-            const adapter = this.app.vault.adapter;
-            if (adapter instanceof obsidian_1.FileSystemAdapter) {
-                this.addRibbonIcon(config.reloadButtonIcon || 'refresh-ccw', 'Update Workspace Plugins', () => {
-                    this.updatePlugins(this.app, adapter.getBasePath(), this.app.vault.configDir).catch(console.error);
-                });
-            }
+            this.addRibbonIcon(config.reloadButtonIcon || 'refresh-ccw', 'Update Workspace Plugins', () => {
+                this.updatePlugins(this.app, adapter.getBasePath(), this.app.vault.configDir).catch(console.error);
+            });
+            log('Loaded');
         });
     }
     async updatePlugins(app, vaultPath, configDir) {
@@ -2561,16 +2566,19 @@ class PluginUpdateButton extends obsidian_1.Plugin {
             const pluginConfig = (pluginConfigs || []).find(({ id }) => id === manifest.id);
             if (pluginConfig) {
                 const pluginPath = (0, node_path_1.join)(vaultPath, configDir, (0, node_path_1.parse)(manifest.dir).base);
-                console.log(`Updating files for ${manifest.id}`);
                 try {
-                    for (const file of pluginConfig.files || []) {
-                        const sourcePath = typeof file === 'string' ? file : file.source;
-                        const destinationPath = typeof file === 'string'
-                            ? (0, node_path_1.join)(pluginPath, (0, node_path_1.parse)(file).base)
-                            : file.destination;
-                        console.log(`Copying ${sourcePath} to ${destinationPath}`);
-                        await (0, fs_extra_1.copy)(sourcePath, destinationPath);
+                    if (pluginConfig.files && pluginConfig.files.length > 0) {
+                        log(`Updating files for ${manifest.id}`);
+                        for (const file of pluginConfig.files) {
+                            const sourcePath = typeof file === 'string' ? file : file.source;
+                            const destinationPath = typeof file === 'string'
+                                ? (0, node_path_1.join)(pluginPath, (0, node_path_1.parse)(file).base)
+                                : file.destination;
+                            log(`Copying ${sourcePath} to ${destinationPath}`);
+                            await (0, fs_extra_1.copy)(sourcePath, destinationPath);
+                        }
                     }
+                    log(`Reloading ${manifest.id}`);
                     await this.reloadPlugin(app.plugins, manifest.id);
                 }
                 catch (error) {
@@ -2578,6 +2586,7 @@ class PluginUpdateButton extends obsidian_1.Plugin {
                 }
             }
         }
+        log('Plugins reloaded');
     }
     /**
      * This function is derived from the one in the official(?) Hot Reload plugin.
@@ -2589,7 +2598,6 @@ class PluginUpdateButton extends obsidian_1.Plugin {
             return;
         }
         await plugins.disablePlugin(pluginName);
-        console.log(`Disabled ${pluginName}`);
         /* Load sourcemaps in Obsidian 14+ */
         const oldDebug = localStorage.getItem(SOURCE_MAP_PROPERTY_NAME);
         localStorage.setItem(SOURCE_MAP_PROPERTY_NAME, '1');
@@ -2605,7 +2613,6 @@ class PluginUpdateButton extends obsidian_1.Plugin {
                 localStorage.setItem(SOURCE_MAP_PROPERTY_NAME, oldDebug);
             }
         }
-        console.log(`Enabled ${pluginName}`);
     }
 }
 var _default = main.default = PluginUpdateButton;
